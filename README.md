@@ -34,9 +34,9 @@ cd build
 Input Fisheye
 <!-- ![source.jpg](images/source.jpg) -->
 
-<img src="images/source.jpg" alt="Description of image" width="500"/>
+<img src="images/fisheye.jpg" alt="Description of image" width="500"/>
 
-Output Part Panorama + Cubemap
+Output Part Panorama + Top Cube (or Bottom Cube if fisheye image is top-down direction)
 
 <img src="outtests/panorama.jpg" alt="Description of image" width="1500"/>
 <img src="outtests/panorama_bottom.jpg" alt="Description of image" width="300"/>

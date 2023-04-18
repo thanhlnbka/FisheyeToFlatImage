@@ -162,7 +162,7 @@ Mat convert_to_panorama(Mat img, int number_block){
 int main(int argc, char){
     
     auto start_time = std::chrono::high_resolution_clock::now();
-    Mat img = imread("../images/source.jpg");
+    Mat img = imread("../images/fisheye.jpg");
     // Check if the frame is empty
     if (img.empty()) {
         std::cout << "Image is empty !" << std::endl;
@@ -183,7 +183,7 @@ int main(int argc, char){
     Mat croppedImage = img(roi);
     Mat image_bottom;
     createCubeMapFace(img, image_bottom, 3, -1, -1);
-    
+    flip(croppedImage, croppedImage, 0);
     imwrite("../outtests/panorama.jpg", croppedImage); 
     imwrite("../outtests/panorama_bottom.jpg", image_bottom);
 
