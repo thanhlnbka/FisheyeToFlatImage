@@ -12,7 +12,6 @@ mkdir build && cd build
 cmake -D CMAKE_INSTALL_PREFIX=/usr ..
 make -j$(nproc)
 sudo make install
-sudo make install
 ```
 
 # Usage
