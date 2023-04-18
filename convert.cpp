@@ -7,7 +7,7 @@
 #include "opencv2/core/core.hpp"
 #include "opencv2/imgproc.hpp"
 #include <chrono>
-
+#include <thread>
 
 using namespace cv;
 
@@ -188,9 +188,20 @@ int main(int argc, char){
     // convert to cubemap
     // +x -x +y -x +z -z
     cv::Mat outs[6];
-    for (int faceid = 0; faceid < 6; faceid++) {
-        cv::Mat& out = outs[faceid];
-        createCubeMapFace(new_image, out, faceid, -1, -1);  // 10ms
+    std::vector<std::thread> threads;
+    const int num_threads = 6;
+    for (int i = 0; i < num_threads; i++) {
+        threads.emplace_back([&, i]() {
+//                    std::cout << "I am the thread with ID " << std::this_thread::get_id() << std::endl;
+            // do something
+            cv::Mat& out = outs[i];
+            createCubeMapFace(new_image, out, i, -1, -1);
+        });
+    }
+
+    // join all threads
+    for (auto& t : threads) {
+        t.join();
     }
 
     int w = outs[0].cols;
