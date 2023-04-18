@@ -36,9 +36,8 @@ Input Fisheye
 
 <img src="images/fisheye.jpg" alt="Description of image" width="500"/>
 
-Output Part Panorama + Top Cube (or Bottom Cube if fisheye image is top-down direction)
+Output CubeMap (or Bottom Cube if fisheye image is top-down direction)
 
-<img src="outtests/panorama.jpg" alt="Description of image" width="1500"/>
-<img src="outtests/panorama_bottom.jpg" alt="Description of image" width="300"/>
+<img src="outtests/cubemap.jpg" alt="Description of image" width="1500"/>
 <!-- ![panorama.jpg](outtests/panorama.jpg)
 ![panorama_bottom.jpg](outtests/panorama_bottom.jpg) -->

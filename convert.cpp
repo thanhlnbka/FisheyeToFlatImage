@@ -7,7 +7,7 @@
 #include "opencv2/core/core.hpp"
 #include "opencv2/imgproc.hpp"
 #include <chrono>
-
+#include <thread>
 
 using namespace cv;
 
@@ -167,25 +167,55 @@ int main(int argc, char){
     if (img.empty()) {
         std::cout << "Image is empty !" << std::endl;
     }
+    int number_blocks = 6; // number block display on panorama image
     // Convert fisheye to panorama image 
-    img = convert_to_panorama(img, 4);
+    img = convert_to_panorama(img, number_blocks);
     int width = img.cols; 
     int height = img.rows;
-    // Crop image and normalize bottom face
-    // Define the ROI rectangle
-    int x1 = 0;
-    int y1 = 0;
-    int x2 = width;
-    int y2 = 3*height/4; // Remove bottom from panorama image
 
-    Rect roi(x1, y1, x2 - x1, y2 - y1);
-    // Crop the image using the ROI
-    Mat croppedImage = img(roi);
-    Mat image_bottom;
-    createCubeMapFace(img, image_bottom, 3, -1, -1);
-    flip(croppedImage, croppedImage, 0);
-    imwrite("../outtests/panorama.jpg", croppedImage); 
-    imwrite("../outtests/panorama_bottom.jpg", image_bottom);
+    // Add Top background color black
+    int new_width = width;
+    int new_height = width/4; 
+
+    int y_top = new_height - height; 
+
+    Mat new_image(new_height, new_width, CV_8UC3, cv::Scalar(0, 0, 0));
+    Rect roi(0, y_top, img.cols, img.rows);
+    Mat sub_image = new_image(roi);
+    img.copyTo(sub_image);
+
+    // cv2.imwrite("../source_test.jpg", new_image); //
+    // convert to cubemap
+    // +x -x +y -x +z -z
+    cv::Mat outs[6];
+    std::vector<std::thread> threads;
+    const int num_threads = 6;
+    for (int i = 0; i < num_threads; i++) {
+        threads.emplace_back([&, i]() {
+//                    std::cout << "I am the thread with ID " << std::this_thread::get_id() << std::endl;
+            // do something
+            cv::Mat& out = outs[i];
+            createCubeMapFace(new_image, out, i, -1, -1);
+        });
+    }
+
+    // join all threads
+    for (auto& t : threads) {
+        t.join();
+    }
+
+    int w = outs[0].cols;
+    int h = outs[0].rows;
+    cv::Mat merged(h*3, w*4, new_image.type());
+
+    outs[1].copyTo(merged(cv::Rect(0, h, w, h))); // left
+    outs[4].copyTo(merged(cv::Rect(w, h, w, h))); // front
+    outs[0].copyTo(merged(cv::Rect(2*w, h, w, h))); // right
+    outs[5].copyTo(merged(cv::Rect(3*w, h, w, h))); // back
+    outs[2].copyTo(merged(cv::Rect(1*w, 0, w, h))); // top
+    outs[3].copyTo(merged(cv::Rect(1*w, 2*h, w, h))); // bottom
+    flip(merged, merged, 0);
+    cv::imwrite("../outtests/cubemap.jpg", merged);
 
     auto end_time = std::chrono::high_resolution_clock::now();
 
