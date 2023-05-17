@@ -161,66 +161,102 @@ Mat convert_to_panorama(Mat img, int number_block){
 
 int main(int argc, char){
     
-    auto start_time = std::chrono::high_resolution_clock::now();
-    Mat img = imread("../images/fisheye.jpg");
-    // Check if the frame is empty
-    if (img.empty()) {
-        std::cout << "Image is empty !" << std::endl;
+   
+    int fps = 15;
+    // int width = 480*4;
+    // int height = 480*3;
+    int width = 480;
+    int height = 480;
+    std::vector<cv::Scalar> colors = {
+        cv::Scalar(0, 0, 255),
+        cv::Scalar(255, 0, 0),
+        cv::Scalar(0, 255, 0)
+    };
+
+    std::vector<cv::VideoWriter> out_streams;
+    for(int i=0; i <=6; i++){
+        cv::VideoWriter out_stream;
+        out_stream.open("appsrc ! videoconvert ! x264enc speed-preset=ultrafast bitrate=600 key-int-max=" + std::to_string(fps * 2) +
+        " ! video/x-h264,profile=baseline ! rtspclientsink protocols=tcp location=rtsp://localhost:8554/mystream" + std::to_string(i),
+        cv::CAP_GSTREAMER, 0, fps, cv::Size(width, height), true);
+        
+        if (!out_stream.isOpened()) {
+                throw std::runtime_error("can't open video writer");
+            }
+        out_streams.push_back(out_stream);
+
     }
-    int number_blocks = 6; // number block display on panorama image
-    // Convert fisheye to panorama image 
-    img = convert_to_panorama(img, number_blocks);
-    int width = img.cols; 
-    int height = img.rows;
+    
+    
+    
+    while (true){
+        auto start_time = std::chrono::high_resolution_clock::now();
+        Mat img = imread("../images/fisheye.jpg");
+        // Check if the frame is empty
+        if (img.empty()) {
+            std::cout << "Image is empty !" << std::endl;
+        }
+        int number_blocks = 6; // number block display on panorama image
+        // Convert fisheye to panorama image 
+        img = convert_to_panorama(img, number_blocks);
+        int width = img.cols; 
+        int height = img.rows;
 
-    // Add Top background color black
-    int new_width = width;
-    int new_height = width/4; 
+        // Add Top background color black
+        int new_width = width;
+        int new_height = width/4; 
 
-    int y_top = new_height - height; 
+        int y_top = new_height - height; 
 
-    Mat new_image(new_height, new_width, CV_8UC3, cv::Scalar(0, 0, 0));
-    Rect roi(0, y_top, img.cols, img.rows);
-    Mat sub_image = new_image(roi);
-    img.copyTo(sub_image);
+        Mat new_image(new_height, new_width, CV_8UC3, cv::Scalar(0, 0, 0));
+        Rect roi(0, y_top, img.cols, img.rows);
+        Mat sub_image = new_image(roi);
+        img.copyTo(sub_image);
 
-    // cv2.imwrite("../source_test.jpg", new_image); //
-    // convert to cubemap
-    // +x -x +y -x +z -z
-    cv::Mat outs[6];
-    std::vector<std::thread> threads;
-    const int num_threads = 6;
-    for (int i = 0; i < num_threads; i++) {
-        threads.emplace_back([&, i]() {
-//                    std::cout << "I am the thread with ID " << std::this_thread::get_id() << std::endl;
-            // do something
-            cv::Mat& out = outs[i];
-            createCubeMapFace(new_image, out, i, -1, -1);
-        });
+        // cv2.imwrite("../source_test.jpg", new_image); //
+        // convert to cubemap
+        // +x -x +y -x +z -z
+        cv::Mat outs[6];
+        std::vector<std::thread> threads;
+        const int num_threads = 6;
+        for (int i = 0; i < num_threads; i++) {
+            threads.emplace_back([&, i]() {
+                cv::Mat& out = outs[i];
+                createCubeMapFace(new_image, out, i, -1, -1);
+                out_streams[i].write(out);
+            });
+        }
+
+        // join all threads
+        for (auto& t : threads) {
+            t.join();
+        }
+
+        int w = outs[0].cols;
+        int h = outs[0].rows;
+        std::cout << "w = " << w << std::endl;
+        std::cout << "h = " << h << std::endl;
+        cv::Mat merged(h*3, w*4, new_image.type());
+
+        outs[1].copyTo(merged(cv::Rect(0, h, w, h))); // left
+        outs[4].copyTo(merged(cv::Rect(w, h, w, h))); // front
+        outs[0].copyTo(merged(cv::Rect(2*w, h, w, h))); // right
+        outs[5].copyTo(merged(cv::Rect(3*w, h, w, h))); // back
+        outs[2].copyTo(merged(cv::Rect(1*w, 0, w, h))); // top
+        outs[3].copyTo(merged(cv::Rect(1*w, 2*h, w, h))); // bottom
+        flip(merged, merged, 0);
+        cv::imwrite("../outtests/cubemap.jpg", merged);
+        // out.write(merged);
+
+        auto end_time = std::chrono::high_resolution_clock::now();
+
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
+        std::cout << "Time taken by code: " << duration.count() << " milliseconds" << std::endl;
+
+
+
     }
-
-    // join all threads
-    for (auto& t : threads) {
-        t.join();
-    }
-
-    int w = outs[0].cols;
-    int h = outs[0].rows;
-    cv::Mat merged(h*3, w*4, new_image.type());
-
-    outs[1].copyTo(merged(cv::Rect(0, h, w, h))); // left
-    outs[4].copyTo(merged(cv::Rect(w, h, w, h))); // front
-    outs[0].copyTo(merged(cv::Rect(2*w, h, w, h))); // right
-    outs[5].copyTo(merged(cv::Rect(3*w, h, w, h))); // back
-    outs[2].copyTo(merged(cv::Rect(1*w, 0, w, h))); // top
-    outs[3].copyTo(merged(cv::Rect(1*w, 2*h, w, h))); // bottom
-    flip(merged, merged, 0);
-    cv::imwrite("../outtests/cubemap.jpg", merged);
-
-    auto end_time = std::chrono::high_resolution_clock::now();
-
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
-    std::cout << "Time taken by code: " << duration.count() << " milliseconds" << std::endl;
+    
 
     return 0;
 }
