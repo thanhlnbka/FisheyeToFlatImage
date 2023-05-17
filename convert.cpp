@@ -162,11 +162,11 @@ Mat convert_to_panorama(Mat img, int number_block){
 int main(int argc, char){
     
    
-    int fps = 15;
+    int fps = 5;
     // int width = 480*4;
     // int height = 480*3;
-    int width = 480;
-    int height = 480;
+    int width = 960;
+    int height = 960;
     std::vector<cv::Scalar> colors = {
         cv::Scalar(0, 0, 255),
         cv::Scalar(255, 0, 0),
@@ -191,8 +191,7 @@ int main(int argc, char){
     
     while (true){
         auto start_time = std::chrono::high_resolution_clock::now();
-        Mat img = imread("../images/fisheye.jpg");
-        // Check if the frame is empty
+        Mat img = imread("../images/fisheye_1280x1280.jpg");
         if (img.empty()) {
             std::cout << "Image is empty !" << std::endl;
         }
@@ -231,22 +230,6 @@ int main(int argc, char){
         for (auto& t : threads) {
             t.join();
         }
-
-        int w = outs[0].cols;
-        int h = outs[0].rows;
-        std::cout << "w = " << w << std::endl;
-        std::cout << "h = " << h << std::endl;
-        cv::Mat merged(h*3, w*4, new_image.type());
-
-        outs[1].copyTo(merged(cv::Rect(0, h, w, h))); // left
-        outs[4].copyTo(merged(cv::Rect(w, h, w, h))); // front
-        outs[0].copyTo(merged(cv::Rect(2*w, h, w, h))); // right
-        outs[5].copyTo(merged(cv::Rect(3*w, h, w, h))); // back
-        outs[2].copyTo(merged(cv::Rect(1*w, 0, w, h))); // top
-        outs[3].copyTo(merged(cv::Rect(1*w, 2*h, w, h))); // bottom
-        flip(merged, merged, 0);
-        cv::imwrite("../outtests/cubemap.jpg", merged);
-        // out.write(merged);
 
         auto end_time = std::chrono::high_resolution_clock::now();
 
